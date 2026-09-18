@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, ScrollView, TouchableWithoutFeedback, Linking, ActivityIndicator, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = 'https://clinic360.demandeniusai.com/api/public/v1';
+const BASE_URL = 'https://clinic360.demandgeniusai.com/api/public/v1';
 
 /**
  * Reusable UPI Payment Scanner Component
