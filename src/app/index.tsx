@@ -4,6 +4,59 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE_URL = 'https://project--7b00890a-3832-46ed-a91b-f2c53975e112.lovable.app/api/public/v1';
 
+/**
+ * Reusable UPI Payment Scanner Component
+ * Can be used in any other screen or application.
+ * Just pass `visible`, `amount`, and standard callbacks.
+ */
+export function UPIPaymentModal({ 
+  visible, 
+  amount, 
+  title = "End of Day Settlement",
+  note = "Clinic360 Dues",
+  onConfirm, 
+  onCancel 
+}: { 
+  visible: boolean; 
+  amount: number; 
+  title?: string;
+  note?: string;
+  onConfirm: () => void; 
+  onCancel: () => void; 
+}) {
+  const qrUrl = `${BASE_URL}/payments/qr?amount=${amount}&note=${encodeURIComponent(note)}`;
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onCancel}>
+      <View style={styles.modalContainerCenter}>
+        <View style={styles.modalContentCenter}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          
+          <View style={styles.paymentSummaryBox}>
+            <Text style={styles.paymentTotalText}>Amount Due: ₹{amount}</Text>
+            <Text style={styles.paymentSummaryText}>Scan the QR below with any UPI app.</Text>
+          </View>
+          
+          <View style={styles.qrPlaceholder}>
+             <Image 
+               source={{ uri: qrUrl }} 
+               style={{ width: 250, height: 250 }} 
+               resizeMode="contain"
+             />
+          </View>
+
+          <TouchableOpacity style={styles.primaryBtnModalFull} onPress={onConfirm}>
+            <Text style={styles.primaryBtnText}>Confirm Paid</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.cancelBtn, {width: '100%', marginTop: 10}]} onPress={onCancel}>
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 type Status = 'Waiting' | 'Serving' | 'Done';
 
 type Doctor = { id: string; name: string; specialization: string; };
@@ -811,38 +864,15 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         </View>
       </Modal>
 
-      {/* EOD Settlement Modal */}
-      <Modal visible={paymentModalVisible} animationType="fade" transparent onRequestClose={() => setPaymentModalVisible(false)}>
-        <View style={styles.modalContainerCenter}>
-          <View style={styles.modalContentCenter}>
-            <Text style={styles.modalTitle}>End of Day Settlement</Text>
-            
-            <View style={styles.paymentSummaryBox}>
-              <Text style={styles.paymentTotalText}>Amount Due: ₹{settlementInfo?.totalDue !== undefined ? settlementInfo.totalDue : (patients.length * 3)}</Text>
-              <Text style={styles.paymentSummaryText}>Scan the QR below to pay the platform.</Text>
-            </View>
-            
-            <View style={styles.qrPlaceholder}>
-               {settlementInfo?.payment?.qrSvgUrl ? (
-                 <Image 
-                   source={{ uri: settlementInfo.payment.qrSvgUrl }} 
-                   style={{ width: 250, height: 250 }} 
-                   resizeMode="contain"
-                 />
-               ) : (
-                 <Text style={styles.qrText}>Pay to: 9663884465</Text>
-               )}
-            </View>
-
-            <TouchableOpacity style={styles.primaryBtnModalFull} onPress={handleSettlePayments}>
-              <Text style={styles.primaryBtnText}>Confirm Paid</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.cancelBtn, {width: '100%', marginTop: 10}]} onPress={() => setPaymentModalVisible(false)}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* EOD Settlement Modal (Reusable Component) */}
+      <UPIPaymentModal 
+        visible={paymentModalVisible}
+        amount={settlementInfo?.totalDue !== undefined ? settlementInfo.totalDue : (patients.length * 3)}
+        title="End of Day Settlement"
+        note={`Clinic360 Dues - ${clinic.name}`}
+        onConfirm={handleSettlePayments}
+        onCancel={() => setPaymentModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
