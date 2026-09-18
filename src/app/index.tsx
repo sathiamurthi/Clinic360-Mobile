@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, ScrollView, TouchableWithoutFeedback, Linking, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, ScrollView, TouchableWithoutFeedback, Linking, ActivityIndicator, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE_URL = 'https://project--7b00890a-3832-46ed-a91b-f2c53975e112.lovable.app/api/public/v1';
@@ -59,7 +59,15 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
         if (!email || !password) throw new Error("Please enter email and password");
         
         if (accountType === 'clinic') {
-          const clinicObj = clinics.find(c => c.id === selectedClinicId) || clinics[0] || { id: 'clinic-123', name: 'Demo Clinic', mobile: '9999999999' };
+          let availableClinics = clinics;
+          if (availableClinics.length === 0) {
+            try {
+              const r = await fetch(`${BASE_URL}/clinics`);
+              const d = await r.json();
+              availableClinics = Array.isArray(d?.clinics) ? d.clinics : (Array.isArray(d) ? d : []);
+            } catch(e) { console.log(e); }
+          }
+          const clinicObj = availableClinics.find(c => c.id === selectedClinicId) || availableClinics[0] || { id: 'clinic-123', name: 'Demo Clinic', mobile: '9999999999' };
           onLogin('clinic', clinicObj);
         } else {
           onLogin('patient');
@@ -88,13 +96,27 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
           if (!res.ok) throw new Error(`API Error (${res.status}): ${data.message || data.error || rawText || 'Failed to register clinic'}`);
           
           const newClinic = { id: data.id || `clinic-${Date.now()}`, name: fullName, mobile };
-          Alert.alert('Success', 'Clinic account created!', [{ text: 'OK', onPress: () => onLogin('clinic', newClinic) }]);
+          if (Platform.OS === 'web') {
+            window.alert('Clinic account created successfully!');
+            onLogin('clinic', newClinic);
+          } else {
+            Alert.alert('Success', 'Clinic account created!', [{ text: 'OK', onPress: () => onLogin('clinic', newClinic) }]);
+          }
         } else {
-          Alert.alert('Success', 'Patient account created!', [{ text: 'OK', onPress: () => onLogin('patient') }]);
+          if (Platform.OS === 'web') {
+            window.alert('Patient account created successfully!');
+            onLogin('patient');
+          } else {
+            Alert.alert('Success', 'Patient account created!', [{ text: 'OK', onPress: () => onLogin('patient') }]);
+          }
         }
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      if (Platform.OS === 'web') {
+        window.alert(err.message);
+      } else {
+        Alert.alert('Error', err.message);
+      }
     }
     setLoading(false);
   };
@@ -404,10 +426,9 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
     try {
       const date = new Date().toISOString().split('T')[0];
       const res = await fetch(`${BASE_URL}/clinics/${clinic.id}/tokens?date=${date}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) setPatients(data);
-      }
+      if (!res.ok) throw new Error('Failed to fetch queue');
+      const data = await res.json();
+      if (Array.isArray(data)) setPatients(data);
     } catch (e) {
       console.warn('Fetch Queue Error', e);
       setPatients([
@@ -419,10 +440,9 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
   const fetchDoctors = async () => {
     try {
       const res = await fetch(`${BASE_URL}/clinics/${clinic.id}/doctors`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) setDoctors(data);
-      }
+      if (!res.ok) throw new Error('Failed to fetch doctors');
+      const data = await res.json();
+      if (Array.isArray(data)) setDoctors(data);
     } catch (e) {
       console.warn('Fetch Doctors Error', e);
       setDoctors([
