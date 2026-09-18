@@ -217,9 +217,9 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
             </>
           )}
 
-          {((accountType === 'patient' && !isLogin) || (accountType === 'clinic' && isLogin)) && clinics.length > 0 && (
+          {accountType === 'patient' && clinics.length > 0 && (
             <>
-              <Text style={styles.inputLabel}>Select Clinic {accountType === 'patient' ? '(Optional)' : ''}</Text>
+              <Text style={styles.inputLabel}>Select Clinic (Optional)</Text>
               <ScrollView style={{ maxHeight: 100, marginBottom: 15 }} nestedScrollEnabled>
                 {clinics.map(c => (
                   <TouchableOpacity 
