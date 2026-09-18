@@ -254,6 +254,7 @@ function PatientScreen({ activeClinicId, onBack }: { activeClinicId: string | nu
   };
 
   const [selectedOption, setSelectedOption] = useState<any>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -268,25 +269,39 @@ function PatientScreen({ activeClinicId, onBack }: { activeClinicId: string | nu
             <Text style={styles.modalTitle}>Track Your Token</Text>
             
             <Text style={styles.inputLabel}>Select Clinic & Doctor</Text>
-            {clinicsWithDoctors.length > 0 ? (
-              <ScrollView style={{ maxHeight: 180, marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 5 }} nestedScrollEnabled>
-                {clinicsWithDoctors.map((opt, i) => {
-                  const isActive = selectedOption?.clinicId === opt.clinicId && selectedOption?.doctorId === opt.doctorId;
-                  return (
-                    <TouchableOpacity 
-                      key={i} 
-                      style={[styles.clinicSelectBtn, isActive && styles.clinicSelectBtnActive]}
-                      onPress={() => {
-                        setSelectedOption(opt);
-                        setClinicId(opt.clinicId);
-                      }}
-                    >
-                      <Text style={[styles.clinicSelectText, isActive && styles.clinicSelectTextActive]}>{opt.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            ) : (
+            <TouchableOpacity 
+              style={[styles.input, { justifyContent: 'center', backgroundColor: '#F9FAFB' }]}
+              onPress={() => setDropdownOpen(!dropdownOpen)}
+            >
+              <Text style={{ color: selectedOption ? '#111827' : '#9CA3AF' }}>
+                {selectedOption ? selectedOption.label : 'Tap to select...'}
+              </Text>
+            </TouchableOpacity>
+            
+            {dropdownOpen && clinicsWithDoctors.length > 0 && (
+              <View style={{ maxHeight: 180, marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 5, backgroundColor: '#fff', elevation: 2 }}>
+                <ScrollView nestedScrollEnabled>
+                  {clinicsWithDoctors.map((opt, i) => {
+                    const isActive = selectedOption?.clinicId === opt.clinicId && selectedOption?.doctorId === opt.doctorId;
+                    return (
+                      <TouchableOpacity 
+                        key={i} 
+                        style={[styles.clinicSelectBtn, isActive && styles.clinicSelectBtnActive]}
+                        onPress={() => {
+                          setSelectedOption(opt);
+                          setClinicId(opt.clinicId);
+                          setDropdownOpen(false);
+                        }}
+                      >
+                        {/* @ts-ignore - title works on web for tooltip */}
+                        <Text title={opt.label} style={[styles.clinicSelectText, isActive && styles.clinicSelectTextActive]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+            {dropdownOpen && clinicsWithDoctors.length === 0 && (
               <Text style={{ color: '#9CA3AF', marginBottom: 15 }}>Loading clinics and doctors...</Text>
             )}
 
