@@ -574,15 +574,15 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
     try {
       const date = new Date().toISOString().split('T')[0];
       const res = await fetch(`${BASE_URL}/clinics/${clinic.id}/settlement?date=${date}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSettlementInfo(data);
-      }
+      if (!res.ok) throw new Error('Failed to fetch settlement');
+      const data = await res.json();
+      setSettlementInfo(data);
     } catch (e) {
-      // Fallback
       setSettlementInfo({
-        total: patients.length * 3,
-        qrImage: `https://project--7b00890a-3832-46ed-a91b-f2c53975e112.lovable.app/api/public/v1/payments/qr?amount=${patients.length*3}`
+        totalDue: patients.length * 3,
+        payment: {
+          qrSvgUrl: `https://project--7b00890a-3832-46ed-a91b-f2c53975e112.lovable.app/api/public/v1/payments/qr?amount=${patients.length*3}`
+        }
       });
     }
   };
@@ -809,14 +809,17 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
             <Text style={styles.modalTitle}>End of Day Settlement</Text>
             
             <View style={styles.paymentSummaryBox}>
-              <Text style={styles.paymentTotalText}>Amount Due: ₹{settlementInfo?.total || (patients.length * 10)}</Text>
+              <Text style={styles.paymentTotalText}>Amount Due: ₹{settlementInfo?.totalDue !== undefined ? settlementInfo.totalDue : (patients.length * 3)}</Text>
               <Text style={styles.paymentSummaryText}>Scan the QR below to pay the platform.</Text>
             </View>
             
             <View style={styles.qrPlaceholder}>
-               {settlementInfo?.qrImage ? (
-                 // Using an Image component if the API returns a base64 or URL (assuming SVG needs react-native-svg, so fallback to text)
-                 <Text style={styles.qrText}>Open API QR URL in browser: {settlementInfo.qrImage}</Text>
+               {settlementInfo?.payment?.qrSvgUrl ? (
+                 <Image 
+                   source={{ uri: settlementInfo.payment.qrSvgUrl }} 
+                   style={{ width: 250, height: 250 }} 
+                   resizeMode="contain"
+                 />
                ) : (
                  <Text style={styles.qrText}>Pay to: 9663884465</Text>
                )}
