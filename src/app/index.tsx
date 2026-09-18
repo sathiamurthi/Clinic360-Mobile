@@ -187,18 +187,47 @@ function PatientScreen({ activeClinicId, onBack }: { activeClinicId: string | nu
   const [searchToken, setSearchToken] = useState('');
   const [searchMobile, setSearchMobile] = useState('');
   const [clinicId, setClinicId] = useState(activeClinicId || '');
-  const [clinics, setClinics] = useState<any[]>([]);
+  const [clinicsWithDoctors, setClinicsWithDoctors] = useState<any[]>([]);
   const [myPatient, setMyPatient] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/clinics`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data?.clinics)) setClinics(data.clinics);
-        else if (Array.isArray(data)) setClinics(data);
-      })
-      .catch(e => console.log('Failed to fetch clinics', e));
+    const fetchAll = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/clinics`);
+        let data = await res.json();
+        let clinics = Array.isArray(data?.clinics) ? data.clinics : (Array.isArray(data) ? data : []);
+        
+        if (clinics.length === 0) {
+          clinics = [{ id: 'clinic-123', name: 'Demo Clinic', mobile: '9999999999' }];
+        }
+
+        let combined: any[] = [];
+        for (const c of clinics) {
+          try {
+            const docRes = await fetch(`${BASE_URL}/clinics/${c.id}/doctors`);
+            const docs = await docRes.json();
+            if (Array.isArray(docs) && docs.length > 0) {
+              docs.forEach(d => {
+                combined.push({
+                  clinicId: c.id,
+                  doctorId: d.id,
+                  label: `${c.name} - ${d.name} - ${d.specialization || 'General'}`
+                });
+              });
+            } else {
+              combined.push({ clinicId: c.id, doctorId: null, label: `${c.name} - No doctors yet` });
+            }
+          } catch (e) {
+            combined.push({ clinicId: c.id, doctorId: null, label: `${c.name}` });
+          }
+        }
+        setClinicsWithDoctors(combined.length > 0 ? combined : [{ clinicId: 'clinic-123', doctorId: 'doc-1', label: 'Demo Clinic - Dr. Smith - General' }]);
+      } catch (e) {
+        setClinicsWithDoctors([{ clinicId: 'clinic-123', doctorId: 'doc-1', label: 'Demo Clinic - Dr. Smith - General' }]);
+      }
+    };
+    fetchAll();
   }, []);
 
   const checkStatus = async () => {
@@ -224,6 +253,8 @@ function PatientScreen({ activeClinicId, onBack }: { activeClinicId: string | nu
     setLoading(false);
   };
 
+  const [selectedOption, setSelectedOption] = useState<any>(null);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -236,21 +267,27 @@ function PatientScreen({ activeClinicId, onBack }: { activeClinicId: string | nu
           <View style={styles.card}>
             <Text style={styles.modalTitle}>Track Your Token</Text>
             
-            <Text style={styles.inputLabel}>Select Clinic</Text>
-            {clinics.length > 0 ? (
-              <ScrollView style={{ maxHeight: 150, marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 5 }} nestedScrollEnabled>
-                {clinics.map(c => (
-                  <TouchableOpacity 
-                    key={c.id} 
-                    style={[styles.clinicSelectBtn, clinicId === c.id && styles.clinicSelectBtnActive]}
-                    onPress={() => setClinicId(c.id)}
-                  >
-                    <Text style={clinicId === c.id ? {color: '#0F766E', fontWeight: 'bold'} : {color: '#374151'}}>{c.name}</Text>
-                  </TouchableOpacity>
-                ))}
+            <Text style={styles.inputLabel}>Select Clinic & Doctor</Text>
+            {clinicsWithDoctors.length > 0 ? (
+              <ScrollView style={{ maxHeight: 180, marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 5 }} nestedScrollEnabled>
+                {clinicsWithDoctors.map((opt, i) => {
+                  const isActive = selectedOption?.clinicId === opt.clinicId && selectedOption?.doctorId === opt.doctorId;
+                  return (
+                    <TouchableOpacity 
+                      key={i} 
+                      style={[styles.clinicSelectBtn, isActive && styles.clinicSelectBtnActive]}
+                      onPress={() => {
+                        setSelectedOption(opt);
+                        setClinicId(opt.clinicId);
+                      }}
+                    >
+                      <Text style={[styles.clinicSelectText, isActive && styles.clinicSelectTextActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             ) : (
-              <Text style={{ color: '#9CA3AF', marginBottom: 15 }}>Loading clinics...</Text>
+              <Text style={{ color: '#9CA3AF', marginBottom: 15 }}>Loading clinics and doctors...</Text>
             )}
 
             <Text style={styles.inputLabel}>Your Mobile Number</Text>
@@ -357,7 +394,7 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         if (Array.isArray(data)) setPatients(data);
       }
     } catch (e) {
-      console.error('Fetch Queue Error', e);
+      console.warn('Fetch Queue Error', e);
       setPatients([
         { id: 'tok-1', tokenNumber: 'T1', patientName: 'John Doe', patientMobile: '9999999999', status: 'Waiting', scheduledTime: 'Today 10:00 AM' }
       ]);
@@ -371,7 +408,13 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         const data = await res.json();
         if (Array.isArray(data)) setDoctors(data);
       }
-    } catch (e) { console.error('Fetch Doctors Error', e); }
+    } catch (e) {
+      console.warn('Fetch Doctors Error', e);
+      setDoctors([
+        { id: 'doc-1', name: 'Dr. Smith', specialization: 'General Physician' },
+        { id: 'doc-2', name: 'Dr. Adams', specialization: 'Pediatrician' }
+      ]);
+    }
   };
 
   const handleAddDoctor = async () => {
@@ -442,7 +485,7 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         throw new Error('Fallback');
       }
     } catch (e) {
-      const tokenNum = `T${patients.length + 1}`;
+      const tokenNum = `${selectedDay}-T${patients.length + 1}`;
       setPatients([...patients, {
         id: `tok-${Date.now()}`, tokenNumber: tokenNum, patientName: newPatientName, 
         patientMobile: newPatientMobile, status: 'Waiting', doctorId: selectedDocId,
@@ -560,6 +603,31 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* Doctor-wise Summary */}
+      {doctors.length > 0 && (
+        <View style={{ backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderColor: '#E5E7EB' }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {doctors.map(doc => {
+              const docPatients = patients.filter(p => p.doctorId === doc.id);
+              const waiting = docPatients.filter(p => p.status === 'Waiting').length;
+              const serving = docPatients.filter(p => p.status === 'Serving').length;
+              const done = docPatients.filter(p => p.status === 'Done').length;
+              return (
+                <View key={doc.id} style={{ padding: 15, borderRightWidth: 1, borderColor: '#E5E7EB', minWidth: 130 }}>
+                  <Text style={{ fontWeight: 'bold', color: '#111827', marginBottom: 4 }} numberOfLines={1}>{doc.name}</Text>
+                  <Text style={{ fontSize: 12, color: '#374151', fontWeight: '500' }}>Total: {docPatients.length}</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#D97706' }}>W: {waiting}</Text>
+                    <Text style={{ fontSize: 12, color: '#2563EB' }}>S: {serving}</Text>
+                    <Text style={{ fontSize: 12, color: '#059669' }}>D: {done}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.queueHeader}>
         <Text style={styles.sectionTitle}>Today's Queue</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => setIssueModalVisible(true)}>
@@ -634,8 +702,8 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
             <Text style={styles.inputLabel}>Specialization</Text>
             <TextInput style={styles.input} placeholder="e.g. Pediatrician" value={newDocSpec} onChangeText={setNewDocSpec} />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDocModalVisible(false)}><Text style={styles.cancelBtnText}>Done</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtnModal} onPress={handleAddDoctor}><Text style={styles.primaryBtnText}>Add</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { setDocModalVisible(false); setNewDocName(''); setNewDocSpec(''); }}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.primaryBtnModal} onPress={handleAddDoctor}><Text style={styles.primaryBtnText}>Add Doctor</Text></TouchableOpacity>
             </View>
           </View>
         </View>
