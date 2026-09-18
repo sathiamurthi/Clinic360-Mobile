@@ -268,6 +268,10 @@ function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinic
   const [clinicsWithDoctors, setClinicsWithDoctors] = useState<any[]>([]);
   const [myPatient, setMyPatient] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'track' | 'request'>('track');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [reqName, setReqName] = useState('');
+  const [reqDay, setReqDay] = useState<'Today' | 'Tomorrow'>('Today');
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -331,6 +335,43 @@ function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinic
     setLoading(false);
   };
 
+  const requestAppointment = async () => {
+    if (!clinicId.trim() || !selectedOption?.doctorId || !searchMobile.trim() || !reqName.trim()) {
+      Alert.alert('Error', 'Please enter your Name, select a Clinic & Doctor, and ensure Mobile is present.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/clinics/${clinicId}/tokens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doctorId: selectedOption.doctorId,
+          patientName: reqName.trim(),
+          patientMobile: searchMobile.trim(),
+          scheduledDay: reqDay
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to request appointment');
+      }
+      const data = await res.json();
+      
+      // Auto switch to tracking view with the new token
+      setSearchToken(data.tokenNumber);
+      setMode('track');
+      Alert.alert('Success', `Appointment Confirmed!\nToken Number: ${data.tokenNumber}`);
+    } catch (err: any) {
+      if (Platform.OS === 'web') {
+        window.alert(err.message || 'Error booking appointment.');
+      } else {
+        Alert.alert('Error', err.message || 'Error booking appointment.');
+      }
+    }
+    setLoading(false);
+  };
+
   const [selectedOption, setSelectedOption] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -344,7 +385,14 @@ function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinic
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         {!myPatient ? (
           <View style={styles.card}>
-            <Text style={styles.modalTitle}>Track Your Token</Text>
+            <View style={styles.toggleContainer}>
+              <TouchableOpacity style={[styles.toggleBtn, mode === 'track' && styles.toggleBtnActive]} onPress={() => setMode('track')}>
+                <Text style={mode === 'track' ? styles.toggleBtnTextActive : styles.toggleBtnText}>Track Token</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.toggleBtn, mode === 'request' && styles.toggleBtnActive]} onPress={() => setMode('request')}>
+                <Text style={mode === 'request' ? styles.toggleBtnTextActive : styles.toggleBtnText}>Request Appointment</Text>
+              </TouchableOpacity>
+            </View>
             
             <Text style={styles.inputLabel}>Select Clinic & Doctor</Text>
             <TouchableOpacity 
@@ -357,9 +405,17 @@ function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinic
             </TouchableOpacity>
             
             {dropdownOpen && clinicsWithDoctors.length > 0 && (
-              <View style={{ maxHeight: 180, marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 5, backgroundColor: '#fff', elevation: 2 }}>
+              <View style={{ maxHeight: 250, marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 5, backgroundColor: '#fff', elevation: 2 }}>
+                <TextInput 
+                  placeholder="Search clinic or doctor..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  style={{ padding: 10, borderBottomWidth: 1, borderColor: '#E5E7EB', marginBottom: 5 }}
+                />
                 <ScrollView nestedScrollEnabled>
-                  {clinicsWithDoctors.map((opt, i) => {
+                  {clinicsWithDoctors
+                    .filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((opt, i) => {
                     const isActive = selectedOption?.clinicId === opt.clinicId && selectedOption?.doctorId === opt.doctorId;
                     return (
                       <TouchableOpacity 
@@ -369,9 +425,10 @@ function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinic
                           setSelectedOption(opt);
                           setClinicId(opt.clinicId);
                           setDropdownOpen(false);
+                          setSearchQuery('');
                         }}
                       >
-                        {/* @ts-ignore - title works on web for tooltip */}
+                        {/* @ts-ignore */}
                         <Text title={opt.label} style={[styles.clinicSelectText, isActive && styles.clinicSelectTextActive]}>{opt.label}</Text>
                       </TouchableOpacity>
                     );
@@ -388,18 +445,46 @@ function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinic
               <Text style={{ color: '#4B5563', fontSize: 16 }}>{patientMobile || 'Not provided'}</Text>
             </View>
 
-            <Text style={styles.inputLabel}>Your Token Number</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="e.g. T1" 
-              value={searchToken} 
-              onChangeText={setSearchToken} 
-              autoCapitalize="characters"
-            />
-            
-            <TouchableOpacity style={styles.primaryBtnModalFull} onPress={checkStatus} disabled={loading}>
-              <Text style={styles.primaryBtnText}>{loading ? 'Checking...' : 'Check Status'}</Text>
-            </TouchableOpacity>
+            {mode === 'track' ? (
+              <>
+                <Text style={styles.inputLabel}>Your Token Number</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="e.g. T1" 
+                  value={searchToken} 
+                  onChangeText={setSearchToken} 
+                  autoCapitalize="characters"
+                />
+                
+                <TouchableOpacity style={styles.primaryBtnModalFull} onPress={checkStatus} disabled={loading}>
+                  <Text style={styles.primaryBtnText}>{loading ? 'Checking...' : 'Check Status'}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.inputLabel}>Patient Name</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="e.g. John Doe" 
+                  value={reqName} 
+                  onChangeText={setReqName} 
+                />
+                
+                <Text style={styles.inputLabel}>Select Day</Text>
+                <View style={{ flexDirection: 'row', marginBottom: 20, gap: 10 }}>
+                  <TouchableOpacity style={[styles.dayChip, reqDay === 'Today' && styles.dayChipActive]} onPress={() => setReqDay('Today')}>
+                    <Text style={[styles.dayChipText, reqDay === 'Today' && styles.dayChipTextActive]}>Today</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.dayChip, reqDay === 'Tomorrow' && styles.dayChipActive]} onPress={() => setReqDay('Tomorrow')}>
+                    <Text style={[styles.dayChipText, reqDay === 'Tomorrow' && styles.dayChipTextActive]}>Tomorrow</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.primaryBtnModalFull} onPress={requestAppointment} disabled={loading}>
+                  <Text style={styles.primaryBtnText}>{loading ? 'Sending...' : 'Request Appointment'}</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         ) : (
           <View style={styles.card}>
