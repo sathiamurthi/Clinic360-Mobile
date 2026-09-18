@@ -108,8 +108,12 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
     setLoading(true);
     try {
       if (isLogin) {
-        if (!email || !password) throw new Error("Please enter email and password");
-        if (accountType === 'patient' && !mobile) throw new Error("Please enter your mobile number");
+        if (accountType === 'clinic' && (!email || !password)) {
+          throw new Error("Please enter email and password");
+        }
+        if (accountType === 'patient' && (!mobile || !password)) {
+          throw new Error("Please enter your mobile number and password");
+        }
         
         if (accountType === 'clinic') {
           let availableClinics = clinics;
@@ -126,8 +130,11 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
           onLogin('patient', undefined, mobile);
         }
       } else {
-        if (!email || !password || !fullName || !mobile || !username) {
+        if (accountType === 'clinic' && (!email || !password || !fullName || !mobile || !username)) {
           throw new Error("Please fill in all fields");
+        }
+        if (accountType === 'patient' && (!fullName || !mobile || !password)) {
+          throw new Error("Please fill in your name, mobile, and password");
         }
         
         if (accountType === 'clinic') {
@@ -201,15 +208,20 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
             </TouchableOpacity>
           </View>
 
-          {!isLogin && (
+          {accountType === 'clinic' && !isLogin && (
             <>
               <Text style={styles.inputLabel}>Username</Text>
               <TextInput style={styles.input} placeholder="e.g. sunrise-clinic" value={username} onChangeText={setUsername} autoCapitalize="none" />
-
-              <Text style={styles.inputLabel}>Full name</Text>
-              <TextInput style={styles.input} placeholder="e.g. Sunrise Clinic" value={fullName} onChangeText={setFullName} />
             </>
           )}
+
+          {!isLogin && (
+            <>
+              <Text style={styles.inputLabel}>Full Name {accountType === 'clinic' ? '/ Clinic Name' : ''}</Text>
+              <TextInput style={styles.input} placeholder={accountType === 'clinic' ? 'e.g. Sunrise Clinic' : 'e.g. John Doe'} value={fullName} onChangeText={setFullName} />
+            </>
+          )}
+
           {(!isLogin || accountType === 'patient') && (
             <>
               <Text style={styles.inputLabel}>Mobile Number</Text>
@@ -217,25 +229,12 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
             </>
           )}
 
-          {accountType === 'patient' && clinics.length > 0 && (
+          {accountType === 'clinic' && (
             <>
-              <Text style={styles.inputLabel}>Select Clinic (Optional)</Text>
-              <ScrollView style={{ maxHeight: 100, marginBottom: 15 }} nestedScrollEnabled>
-                {clinics.map(c => (
-                  <TouchableOpacity 
-                    key={c.id} 
-                    style={[styles.clinicSelectBtn, selectedClinicId === c.id && styles.clinicSelectBtnActive]}
-                    onPress={() => setSelectedClinicId(c.id)}
-                  >
-                    <Text style={selectedClinicId === c.id ? {color: '#0F766E', fontWeight: 'bold'} : {color: '#374151'}}>{c.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput style={styles.input} placeholder="Email address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
             </>
           )}
-
-          <Text style={styles.inputLabel}>Email</Text>
-          <TextInput style={styles.input} placeholder="Email address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
           <Text style={styles.inputLabel}>Password</Text>
           <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
