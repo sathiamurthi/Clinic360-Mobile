@@ -59,7 +59,7 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
         if (!email || !password) throw new Error("Please enter email and password");
         
         if (accountType === 'clinic') {
-          const clinicObj = clinics[0] || { id: 'clinic-123', name: 'Demo Clinic', mobile: '9999999999' };
+          const clinicObj = clinics.find(c => c.id === selectedClinicId) || clinics[0] || { id: 'clinic-123', name: 'Demo Clinic', mobile: '9999999999' };
           onLogin('clinic', clinicObj);
         } else {
           onLogin('patient');
@@ -139,22 +139,20 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
             </>
           )}
 
-              {accountType === 'patient' && clinics.length > 0 && (
-                <>
-                  <Text style={styles.inputLabel}>Select Clinic (Optional)</Text>
-                  <ScrollView style={{ maxHeight: 100, marginBottom: 15 }} nestedScrollEnabled>
-                    {clinics.map(c => (
-                      <TouchableOpacity 
-                        key={c.id} 
-                        style={[styles.clinicSelectBtn, selectedClinicId === c.id && styles.clinicSelectBtnActive]}
-                        onPress={() => setSelectedClinicId(c.id)}
-                      >
-                        <Text style={selectedClinicId === c.id ? {color: '#0F766E', fontWeight: 'bold'} : {color: '#374151'}}>{c.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </>
-              )}
+          {((accountType === 'patient' && !isLogin) || (accountType === 'clinic' && isLogin)) && clinics.length > 0 && (
+            <>
+              <Text style={styles.inputLabel}>Select Clinic {accountType === 'patient' ? '(Optional)' : ''}</Text>
+              <ScrollView style={{ maxHeight: 100, marginBottom: 15 }} nestedScrollEnabled>
+                {clinics.map(c => (
+                  <TouchableOpacity 
+                    key={c.id} 
+                    style={[styles.clinicSelectBtn, selectedClinicId === c.id && styles.clinicSelectBtnActive]}
+                    onPress={() => setSelectedClinicId(c.id)}
+                  >
+                    <Text style={selectedClinicId === c.id ? {color: '#0F766E', fontWeight: 'bold'} : {color: '#374151'}}>{c.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </>
           )}
 
