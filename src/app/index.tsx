@@ -338,7 +338,7 @@ function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinic
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.clinicName}>Patient Portal</Text>
-        <TouchableOpacity onPress={onBack}><Text style={styles.headerBtnText}>Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onBack}><Text style={styles.headerBtnText}>Logout</Text></TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
