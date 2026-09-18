@@ -16,6 +16,7 @@ type PatientToken = {
   status: Status;
   scheduledTime?: string;
   doctorId: string;
+  scheduledDay?: string;
 };
 
 type ClinicInfo = {
@@ -602,6 +603,9 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
     }
   };
 
+  const [queueFilter, setQueueFilter] = useState<'Today' | 'Tomorrow'>('Today');
+  const filteredPatients = patients.filter(p => (p.scheduledDay || 'Today') === queueFilter);
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -643,7 +647,7 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         <View style={{ backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderColor: '#E5E7EB' }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {doctors.map(doc => {
-              const docPatients = patients.filter(p => p.doctorId === doc.id);
+              const docPatients = filteredPatients.filter(p => p.doctorId === doc.id);
               const waiting = docPatients.filter(p => p.status === 'Waiting').length;
               const serving = docPatients.filter(p => p.status === 'Serving').length;
               const done = docPatients.filter(p => p.status === 'Done').length;
@@ -664,17 +668,24 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
       )}
 
       <View style={styles.queueHeader}>
-        <Text style={styles.sectionTitle}>Today's Queue</Text>
+        <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => setQueueFilter('Today')}>
+            <Text style={[styles.sectionTitle, queueFilter !== 'Today' && { color: '#9CA3AF' }]}>Today</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setQueueFilter('Tomorrow')}>
+            <Text style={[styles.sectionTitle, queueFilter !== 'Tomorrow' && { color: '#9CA3AF' }]}>Tomorrow</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => setIssueModalVisible(true)}>
           <Text style={styles.addBtnText}>+ Issue Token</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={patients}
+        data={filteredPatients}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.emptyText}>No patients in queue yet.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No patients in {queueFilter}'s queue yet.</Text>}
         renderItem={({ item }) => {
           const doctor = doctors.find(d => d.id === item.doctorId);
           return (
