@@ -24,7 +24,12 @@ export function UPIPaymentModal({
   onConfirm: () => void; 
   onCancel: () => void; 
 }) {
-  const qrUrl = `${BASE_URL}/payments/qr?amount=${amount}&note=${encodeURIComponent(note)}`;
+  // Construct the UPI URI directly on the frontend so it immediately works without waiting for a backend deployment
+  const upiId = "shilpashree0404-1@okhdfcbank";
+  const pn = encodeURIComponent("Clinic360");
+  const tn = encodeURIComponent(note);
+  const upiStr = `upi://pay?pa=${upiId}&pn=${pn}&am=${amount.toFixed(2)}&cu=INR&tn=${tn}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(upiStr)}&format=svg`;
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onCancel}>
