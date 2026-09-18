@@ -28,27 +28,25 @@ type ClinicInfo = {
 /* -------------------------------------------------------------------------- */
 /* AUTHENTICATION SCREEN (Sign In / Create Account)                           */
 /* -------------------------------------------------------------------------- */
-function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicData?: any) => void }) {
+export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinic?: any, mobile?: string) => void }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [accountType, setAccountType] = useState<'patient' | 'clinic'>('patient');
-  
-  // Form fields
+  const [accountType, setAccountType] = useState<'clinic' | 'patient'>('clinic');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [mobile, setMobile] = useState('');
-  const [selectedClinicId, setSelectedClinicId] = useState('');
-  
   const [clinics, setClinics] = useState<any[]>([]);
+  const [selectedClinicId, setSelectedClinicId] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Fetch available clinics for patients to select, or clinic staff to join
     fetch(`${BASE_URL}/clinics`)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) setClinics(data);
+        const arr = Array.isArray(data?.clinics) ? data.clinics : (Array.isArray(data) ? data : []);
+        setClinics(arr);
+        if (arr.length > 0) setSelectedClinicId(arr[0].id);
       })
       .catch(e => console.log('Failed to fetch clinics', e));
   }, []);
@@ -58,6 +56,7 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
     try {
       if (isLogin) {
         if (!email || !password) throw new Error("Please enter email and password");
+        if (accountType === 'patient' && !mobile) throw new Error("Please enter your mobile number");
         
         if (accountType === 'clinic') {
           let availableClinics = clinics;
@@ -71,7 +70,7 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
           const clinicObj = availableClinics.find(c => c.id === selectedClinicId) || availableClinics[0] || { id: 'clinic-123', name: 'Demo Clinic', mobile: '9999999999' };
           onLogin('clinic', clinicObj);
         } else {
-          onLogin('patient');
+          onLogin('patient', undefined, mobile);
         }
       } else {
         if (!email || !password || !fullName || !mobile || !username) {
@@ -156,8 +155,11 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
 
               <Text style={styles.inputLabel}>Full name</Text>
               <TextInput style={styles.input} placeholder="e.g. Sunrise Clinic" value={fullName} onChangeText={setFullName} />
-
-              <Text style={styles.inputLabel}>Mobile</Text>
+            </>
+          )}
+          {(!isLogin || accountType === 'patient') && (
+            <>
+              <Text style={styles.inputLabel}>Mobile Number</Text>
               <TextInput style={styles.input} placeholder="9876543210" value={mobile} onChangeText={setMobile} keyboardType="phone-pad" />
             </>
           )}
@@ -206,9 +208,9 @@ function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', clinicD
 /* -------------------------------------------------------------------------- */
 /* PATIENT STATUS SCREEN                                                      */
 /* -------------------------------------------------------------------------- */
-function PatientScreen({ activeClinicId, onBack }: { activeClinicId: string | null, onBack: () => void }) {
+function PatientScreen({ activeClinicId, onBack, patientMobile }: { activeClinicId: string | null, onBack: () => void, patientMobile: string }) {
   const [searchToken, setSearchToken] = useState('');
-  const [searchMobile, setSearchMobile] = useState('');
+  const [searchMobile, setSearchMobile] = useState(patientMobile);
   const [clinicId, setClinicId] = useState(activeClinicId || '');
   const [clinicsWithDoctors, setClinicsWithDoctors] = useState<any[]>([]);
   const [myPatient, setMyPatient] = useState<any>(null);
@@ -329,13 +331,9 @@ function PatientScreen({ activeClinicId, onBack }: { activeClinicId: string | nu
             )}
 
             <Text style={styles.inputLabel}>Your Mobile Number</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="10-digit number" 
-              value={searchMobile} 
-              onChangeText={setSearchMobile} 
-              keyboardType="phone-pad"
-            />
+            <View style={[styles.input, { backgroundColor: '#F3F4F6', justifyContent: 'center' }]}>
+              <Text style={{ color: '#4B5563', fontSize: 16 }}>{patientMobile || 'Not provided'}</Text>
+            </View>
 
             <Text style={styles.inputLabel}>Your Token Number</Text>
             <TextInput 
@@ -855,16 +853,18 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
 export default function App() {
   const [role, setRole] = useState<'none' | 'clinic' | 'patient'>('none');
   const [clinic, setClinic] = useState<ClinicInfo | null>(null);
+  const [patientMobile, setPatientMobile] = useState('');
   
   if (role === 'none') {
-    return <AuthScreen onLogin={(selectedRole, clinicData) => {
+    return <AuthScreen onLogin={(selectedRole, clinicData, mobile) => {
       setRole(selectedRole);
       if (clinicData) setClinic(clinicData);
+      if (mobile) setPatientMobile(mobile);
     }} />;
   }
 
   if (role === 'patient') {
-    return <PatientScreen activeClinicId={clinic?.id || null} onBack={() => setRole('none')} />;
+    return <PatientScreen activeClinicId={clinic?.id || null} patientMobile={patientMobile} onBack={() => { setRole('none'); setPatientMobile(''); }} />;
   }
 
   if (role === 'clinic') {
