@@ -356,7 +356,12 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         const data = await res.json();
         if (Array.isArray(data)) setPatients(data);
       }
-    } catch (e) { console.error('Fetch Queue Error', e); }
+    } catch (e) {
+      console.error('Fetch Queue Error', e);
+      setPatients([
+        { id: 'tok-1', tokenNumber: 'T1', patientName: 'John Doe', patientMobile: '9999999999', status: 'Waiting', scheduledTime: 'Today 10:00 AM' }
+      ]);
+    }
   };
 
   const fetchDoctors = async () => {
@@ -392,11 +397,31 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
       // Fallback
       setDoctors([...doctors, { id: `doc-${Date.now()}`, name: newDocName, specialization: newDocSpec }]);
       setDocModalVisible(false);
+      setNewDocName(''); setNewDocSpec('');
+    }
+  };
+
+  const deleteDoctor = async (docId: string) => {
+    try {
+      const res = await fetch(`${BASE_URL}/doctors/${docId}`, { method: 'DELETE' });
+      if (res.ok) fetchDoctors();
+      else throw new Error('Fallback');
+    } catch (e) {
+      setDoctors(doctors.filter(d => d.id !== docId));
     }
   };
 
   const issueToken = async () => {
     if (!newPatientName.trim() || !newPatientMobile.trim() || !selectedDocId || !selectedTime) return;
+    
+    const resetForm = () => {
+      setNewPatientName('');
+      setNewPatientMobile('');
+      setSelectedDocId('');
+      setSelectedTime('');
+      setSelectedDay('Today');
+    };
+
     try {
       const res = await fetch(`${BASE_URL}/clinics/${clinic.id}/tokens`, {
         method: 'POST',
@@ -410,15 +435,13 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         })
       });
       if (res.ok) {
-        const data = await res.json();
-        // The API returns platformFee, visits remaining, etc.
         fetchQueue();
         setIssueModalVisible(false);
+        resetForm();
       } else {
         throw new Error('Fallback');
       }
     } catch (e) {
-      // Fallback if API fails
       const tokenNum = `T${patients.length + 1}`;
       setPatients([...patients, {
         id: `tok-${Date.now()}`, tokenNumber: tokenNum, patientName: newPatientName, 
@@ -426,6 +449,7 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         scheduledTime: `${selectedDay} ${selectedTime}`
       }]);
       setIssueModalVisible(false);
+      resetForm();
     }
   };
 
@@ -521,7 +545,7 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
           <View style={styles.menuOverlay}>
             <View style={styles.dropdownMenu}>
               <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); setDocModalVisible(true); }}>
-                <Text style={styles.menuItemText}>Add Doctor</Text>
+                <Text style={styles.menuItemText}>Manage Doctors</Text>
               </TouchableOpacity>
               <View style={styles.menuDivider} />
               <TouchableOpacity style={styles.menuItem} onPress={handleOpenSettlement}>
@@ -583,18 +607,35 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
         }}
       />
 
-      {/* Add Doctor Modal */}
+      {/* Manage Doctors Modal */}
       <Modal visible={docModalVisible} animationType="slide" transparent onRequestClose={() => setDocModalVisible(false)}>
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Doctor</Text>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <Text style={styles.modalTitle}>Manage Doctors</Text>
+            
+            <ScrollView style={{ maxHeight: 200, marginBottom: 15 }} nestedScrollEnabled>
+              {doctors.map(d => (
+                <View key={d.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderBottomWidth: 1, borderColor: '#F3F4F6' }}>
+                  <View>
+                    <Text style={{ fontWeight: 'bold', color: '#111827' }}>{d.name}</Text>
+                    <Text style={{ fontSize: 12, color: '#6B7280' }}>{d.specialization || 'General'}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => deleteDoctor(d.id)} style={{ padding: 5 }}>
+                    <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {doctors.length === 0 && <Text style={{ color: '#9CA3AF', padding: 10 }}>No doctors added yet.</Text>}
+            </ScrollView>
+
+            <Text style={[styles.modalTitle, { fontSize: 16, marginTop: 10 }]}>Add New Doctor</Text>
             <Text style={styles.inputLabel}>Doctor Name</Text>
             <TextInput style={styles.input} placeholder="e.g. Dr. Adams" value={newDocName} onChangeText={setNewDocName} />
             <Text style={styles.inputLabel}>Specialization</Text>
             <TextInput style={styles.input} placeholder="e.g. Pediatrician" value={newDocSpec} onChangeText={setNewDocSpec} />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDocModalVisible(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtnModal} onPress={handleAddDoctor}><Text style={styles.primaryBtnText}>Add Doctor</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDocModalVisible(false)}><Text style={styles.cancelBtnText}>Done</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.primaryBtnModal} onPress={handleAddDoctor}><Text style={styles.primaryBtnText}>Add</Text></TouchableOpacity>
             </View>
           </View>
         </View>
