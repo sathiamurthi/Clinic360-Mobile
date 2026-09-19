@@ -170,9 +170,9 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
         } else {
           if (Platform.OS === 'web') {
             window.alert('Patient account created successfully!');
-            onLogin('patient');
+            onLogin('patient', undefined, mobile);
           } else {
-            Alert.alert('Success', 'Patient account created!', [{ text: 'OK', onPress: () => onLogin('patient') }]);
+            Alert.alert('Success', 'Patient account created!', [{ text: 'OK', onPress: () => onLogin('patient', undefined, mobile) }]);
           }
         }
       }
