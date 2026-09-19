@@ -29,7 +29,7 @@ export function UPIPaymentModal({
   const pn = encodeURIComponent("Clinic360");
   const tn = encodeURIComponent(note);
   const upiStr = `upi://pay?pa=${upiId}&pn=${pn}&am=${amount.toFixed(2)}&cu=INR&tn=${tn}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(upiStr)}&format=svg`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(upiStr)}`;
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onCancel}>
@@ -886,7 +886,23 @@ function DashboardScreen({ clinic, onReset }: { clinic: ClinicInfo, onReset: () 
             <Text style={styles.inputLabel}>Doctor Name</Text>
             <TextInput style={styles.input} placeholder="e.g. Dr. Adams" value={newDocName} onChangeText={setNewDocName} />
             <Text style={styles.inputLabel}>Specialization</Text>
-            <TextInput style={styles.input} placeholder="e.g. Pediatrician" value={newDocSpec} onChangeText={setNewDocSpec} />
+            <ScrollView style={{ flexDirection: 'row', marginBottom: 10 }} horizontal showsHorizontalScrollIndicator={false}>
+              {['General Physician', 'Cardiologist', 'Dentist', 'Dermatologist', 'Pediatrician', 'Custom'].map(spec => {
+                const isActive = (newDocSpec === spec) || (spec === 'Custom' && !['General Physician', 'Cardiologist', 'Dentist', 'Dermatologist', 'Pediatrician', ''].includes(newDocSpec));
+                return (
+                  <TouchableOpacity 
+                    key={spec} 
+                    style={[styles.doctorChip, isActive && styles.doctorChipActive]}
+                    onPress={() => setNewDocSpec(spec === 'Custom' ? 'Other' : spec)}
+                  >
+                    <Text style={[styles.doctorChipText, isActive && styles.doctorChipTextActive]}>{spec}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {!['General Physician', 'Cardiologist', 'Dentist', 'Dermatologist', 'Pediatrician', ''].includes(newDocSpec) && (
+               <TextInput style={styles.input} placeholder="Type custom specialization..." value={newDocSpec} onChangeText={setNewDocSpec} />
+            )}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => { setDocModalVisible(false); setNewDocName(''); setNewDocSpec(''); }}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtnModal} onPress={handleAddDoctor}><Text style={styles.primaryBtnText}>Add Doctor</Text></TouchableOpacity>

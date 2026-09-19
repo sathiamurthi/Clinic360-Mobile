@@ -39,6 +39,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2a52f182-bd83-4bc0-839b-90f2cd81c773"
+      }
+    },
+    "owner": "demandgeniusais-team"
   }
 }
