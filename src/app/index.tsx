@@ -109,6 +109,32 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
       .catch(e => console.log('Failed to fetch clinics', e));
   }, []);
 
+  const [showOtp, setShowOtp] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length < 4) {
+      Alert.alert('Error', 'Please enter a valid OTP');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile, otp: otpCode })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Invalid OTP');
+      
+      setShowOtp(false);
+      onLogin('patient', undefined, mobile);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+    setLoading(false);
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     try {
@@ -116,8 +142,8 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
         if (accountType === 'clinic' && (!email || !password)) {
           throw new Error("Please enter email and password");
         }
-        if (accountType === 'patient' && (!mobile || !password)) {
-          throw new Error("Please enter your mobile number and password");
+        if (accountType === 'patient' && (!mobile)) {
+          throw new Error("Please enter your mobile number");
         }
         
         if (accountType === 'clinic') {
@@ -132,14 +158,25 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
           const clinicObj = availableClinics.find(c => c.id === selectedClinicId) || availableClinics[0] || { id: 'clinic-123', name: 'Demo Clinic', mobile: '9999999999' };
           onLogin('clinic', clinicObj);
         } else {
-          onLogin('patient', undefined, mobile);
+          // Send OTP instead of direct login
+          const res = await fetch(`${BASE_URL}/auth/request-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setShowOtp(true);
+          } else {
+            throw new Error(data.message || 'Failed to send OTP');
+          }
         }
       } else {
         if (accountType === 'clinic' && (!email || !password || !fullName || !mobile || !username)) {
           throw new Error("Please fill in all fields");
         }
-        if (accountType === 'patient' && (!fullName || !mobile || !password)) {
-          throw new Error("Please fill in your name, mobile, and password");
+        if (accountType === 'patient' && (!fullName || !mobile)) {
+          throw new Error("Please fill in your name and mobile");
         }
         
         if (accountType === 'clinic') {
@@ -168,11 +205,17 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
             Alert.alert('Success', 'Clinic account created!', [{ text: 'OK', onPress: () => onLogin('clinic', newClinic) }]);
           }
         } else {
-          if (Platform.OS === 'web') {
-            window.alert('Patient account created successfully!');
-            onLogin('patient', undefined, mobile);
+          // Patient sign up -> send OTP
+          const res = await fetch(`${BASE_URL}/auth/request-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setShowOtp(true);
           } else {
-            Alert.alert('Success', 'Patient account created!', [{ text: 'OK', onPress: () => onLogin('patient', undefined, mobile) }]);
+            throw new Error(data.message || 'Failed to send OTP');
           }
         }
       }
@@ -258,6 +301,32 @@ export function AuthScreen({ onLogin }: { onLogin: (role: 'clinic' | 'patient', 
           </View>
         </View>
       </ScrollView>
+
+      <Modal visible={showOtp} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Enter OTP</Text>
+            <Text style={{marginBottom: 15, color: '#4B5563'}}>Sent to {mobile}</Text>
+            <TextInput 
+              style={[styles.input, {textAlign: 'center', fontSize: 24, letterSpacing: 5}]} 
+              placeholder="000000" 
+              keyboardType="number-pad" 
+              maxLength={6}
+              value={otpCode} 
+              onChangeText={setOtpCode} 
+            />
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 15}}>
+              <TouchableOpacity style={[{backgroundColor: '#E5E7EB', padding: 15, borderRadius: 8, flex: 1, marginRight: 10, alignItems: 'center'}]} onPress={() => setShowOtp(false)}>
+                <Text style={{color: '#4B5563', fontWeight: 'bold'}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[{backgroundColor: '#0F766E', padding: 15, borderRadius: 8, flex: 1, marginLeft: 10, alignItems: 'center'}]} onPress={handleVerifyOtp} disabled={loading}>
+                <Text style={{color: '#FFFFFF', fontWeight: 'bold'}}>{loading ? 'Wait...' : 'Verify'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
